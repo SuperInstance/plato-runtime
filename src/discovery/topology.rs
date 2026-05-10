@@ -61,7 +61,6 @@ pub fn detect_cache_topology() -> CacheInfo {
         let cl_path = format!("/sys/devices/system/cpu/cpu0/cache/index{}/coherency_line_size", idx);
         if let Ok(cl_str) = fs::read_to_string(&cl_path) {
             if let Ok(cl) = cl_str.trim().parse::<usize>() {
-                info.cache_line = cl * 1024; // Wait, this is already in bytes
                 // Actually sysfs reports in bytes
                 info.cache_line = cl;
             }

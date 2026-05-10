@@ -22,7 +22,7 @@ fn bench_memory_bandwidth(size: usize) -> f64 {
     for _ in 0..iterations {
         for chunk in data.chunks(8) {
             let mut arr = [0u8; 8];
-            arr.copy_from_slice(&chunk[..chunk.len().min(8)]);
+            arr[..chunk.len()].copy_from_slice(chunk);
             sum = sum.wrapping_add(u64::from_ne_bytes(arr));
         }
     }

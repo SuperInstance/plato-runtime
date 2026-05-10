@@ -39,7 +39,7 @@ impl Default for CudaDeviceInfo {
     }
 }
 
-/// Get device info (using known defaults + nvcc detection)
+/// Get device info (using known defaults; nvcc gives toolkit version, not compute cap)
 pub fn get_device_info() -> Option<CudaDeviceInfo> {
     if !is_cuda_available() {
         return None;
@@ -47,27 +47,20 @@ pub fn get_device_info() -> Option<CudaDeviceInfo> {
     
     let mut info = CudaDeviceInfo::default();
     
-    // Try to refine from nvcc
-    if let Ok(output) = std::process::Command::new("/usr/bin/nvcc")
-        .arg("--version")
+    // Try nvidia-smi for real compute capability (available on most systems)
+    if let Ok(output) = std::process::Command::new("nvidia-smi")
+        .args(["--query-gpu=compute_cap", "--format=csv,noheader"])
         .output()
     {
-        let ver_str = String::from_utf8_lossy(&output.stdout);
-        for line in ver_str.lines() {
-            if let Some(idx) = line.find("release") {
-                let rest = &line[idx..];
-                let parts: Vec<&str> = rest.split_whitespace().collect();
-                if parts.len() >= 2 {
-                    let v: Vec<u32> = parts[1].split('.')
-                        .filter_map(|s| s.parse().ok())
-                        .collect();
-                    if v.len() >= 2 {
-                        info.compute_capability = (v[0], v[1]);
-                    }
-                }
-            }
+        let cap = String::from_utf8_lossy(&output.stdout);
+        let parts: Vec<u32> = cap.trim().split('.')
+            .filter_map(|s| s.parse().ok())
+            .collect();
+        if parts.len() >= 2 {
+            info.compute_capability = (parts[0], parts[1]);
         }
     }
+    // NOTE: Do NOT parse nvcc --version — it reports CUDA toolkit version, not GPU capability
 
     Some(info)
 }
