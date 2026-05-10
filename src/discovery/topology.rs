@@ -15,7 +15,7 @@ impl std::fmt::Display for CacheInfo {
         writeln!(f, "    L1 Data:         {} KB/core", self.l1_data / 1024)?;
         writeln!(f, "    L1 Instruction:  {} KB/core", self.l1_instruction / 1024)?;
         writeln!(f, "    L2:              {} KB/core", self.l2 / 1024)?;
-        writeln!(f, "    L3:              {} KB shared", self.l3 / (1024 * 1024))?;
+        writeln!(f, "    L3:              {} MB shared", self.l3 / (1024 * 1024))?;
         writeln!(f, "    Cache Line:      {} bytes", self.cache_line)
     }
 }

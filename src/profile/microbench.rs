@@ -73,8 +73,10 @@ pub fn run_profile() -> ProfileResult {
     let i32_ops = bench_constraint_check(100_000_000);
     println!("{:.2} Mops/s", i32_ops / 1e6);
 
-    // I8 simulated — same integer path, just smaller ops
-    let i8_ops = i32_ops * 1.8; // VNNI would give ~4x but we approximate
+    // I8 simulated — packed INT8 operations
+    print!("  Constraint check (I8 packed)... ");
+    let i8_ops = bench_i8_packed(100_000_000);
+    println!("{:.2} Mops/s", i8_ops / 1e6);
     
     // FP64 — use actual float ops
     print!("  Constraint check (FP64 ops)... ");
@@ -116,17 +118,32 @@ fn bench_fp64(iterations: u64) -> f64 {
     iterations as f64 / elapsed
 }
 
-fn estimate_tsc_freq() -> f64 {
+fn bench_i8_packed(iterations: u64) -> f64 {
     let start = Instant::now();
-    let tsc_start = unsafe { std::arch::x86_64::_rdtsc() };
-    
-    // Busy wait 100ms
-    std::thread::sleep(std::time::Duration::from_millis(100));
-    
-    let tsc_end = unsafe { std::arch::x86_64::_rdtsc() };
+    let mut acc: i8 = 0;
+    for i in 0..iterations {
+        acc = acc.wrapping_add((i & 0xFF) as i8);
+        acc = acc.wrapping_mul(3);
+    }
+    std::hint::black_box(acc);
     let elapsed = start.elapsed().as_secs_f64();
-    
-    (tsc_end - tsc_start) as f64 / elapsed
+    iterations as f64 / elapsed
+}
+
+fn estimate_tsc_freq() -> f64 {
+    #[cfg(target_arch = "x86_64")]
+    {
+        let start = Instant::now();
+        let tsc_start = unsafe { std::arch::x86_64::_rdtsc() };
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        let tsc_end = unsafe { std::arch::x86_64::_rdtsc() };
+        let elapsed = start.elapsed().as_secs_f64();
+        (tsc_end - tsc_start) as f64 / elapsed
+    }
+    #[cfg(not(target_arch = "x86_64"))]
+    {
+        0.0 // No TSC on non-x86
+    }
 }
 
 pub fn print_profile(result: &ProfileResult) {

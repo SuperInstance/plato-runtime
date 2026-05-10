@@ -28,7 +28,7 @@ impl AdaptiveScheduler {
     }
 
     pub fn submit(&self, task: Task, priority: Priority) -> TaskHandle {
-        let id = TASK_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let id = TASK_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         let handle = TaskHandle {
             id,
             submitted_at: Instant::now(),
