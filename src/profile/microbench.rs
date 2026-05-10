@@ -8,10 +8,7 @@ fn bench_constraint_check(iterations: u64) -> f64 {
     for _i in 0..iterations {
         acc = acc.wrapping_add(_i).wrapping_mul(0x517cc1b727220a95);
     }
-    // Black box
-    if acc == 0xDEADBEEF {
-        println!("");
-    }
+    std::hint::black_box(&acc);
     let elapsed = start.elapsed().as_secs_f64();
     iterations as f64 / elapsed
 }
@@ -29,9 +26,7 @@ fn bench_memory_bandwidth(size: usize) -> f64 {
             sum = sum.wrapping_add(u64::from_ne_bytes(arr));
         }
     }
-    if sum == 0xDEADBEEF {
-        println!("");
-    }
+    std::hint::black_box(&sum);
     let elapsed = start.elapsed().as_secs_f64();
     (size * iterations) as f64 / elapsed
 }
@@ -133,12 +128,22 @@ fn bench_i8_packed(iterations: u64) -> f64 {
 fn estimate_tsc_freq() -> f64 {
     #[cfg(target_arch = "x86_64")]
     {
-        let start = Instant::now();
-        let tsc_start = unsafe { std::arch::x86_64::_rdtsc() };
-        std::thread::sleep(std::time::Duration::from_millis(100));
-        let tsc_end = unsafe { std::arch::x86_64::_rdtsc() };
-        let elapsed = start.elapsed().as_secs_f64();
-        (tsc_end - tsc_start) as f64 / elapsed
+        use std::arch::x86_64::_rdtsc;
+        // Multiple measurements, take median for robustness
+        let mut measurements = Vec::with_capacity(10);
+        for _ in 0..10 {
+            let start = Instant::now();
+            let tsc_start = unsafe { _rdtsc() };
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            let tsc_end = unsafe { _rdtsc() };
+            let elapsed = start.elapsed().as_secs_f64();
+            if elapsed > 0.0 {
+                measurements.push((tsc_end.wrapping_sub(tsc_start)) as f64 / elapsed);
+            }
+        }
+        if measurements.is_empty() { return 0.0; }
+        measurements.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        measurements[measurements.len() / 2] // Median
     }
     #[cfg(not(target_arch = "x86_64"))]
     {

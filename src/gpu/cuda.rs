@@ -5,12 +5,17 @@ use std::path::Path;
 
 /// Check if CUDA driver is available
 pub fn is_cuda_available() -> bool {
-    let paths = [
+    let driver_paths = [
         "/usr/lib/wsl/lib/libcuda.so.1",
+        "/usr/lib/wsl/lib/libcuda.so",
         "/usr/lib/x86_64-linux-gnu/libcuda.so.1",
         "/usr/local/cuda/lib64/libcuda.so.1",
     ];
-    paths.iter().any(|p| Path::new(p).exists())
+    let has_driver = driver_paths.iter().any(|p| Path::new(p).exists());
+    // Also check device nodes (more reliable in WSL2)
+    let has_device = Path::new("/dev/nvidia0").exists()
+        || Path::new("/proc/driver/nvidia").exists();
+    has_driver || has_device
 }
 
 /// CUDA device info (gathered without full CUDA runtime)
